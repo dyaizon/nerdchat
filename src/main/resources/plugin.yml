@@ -1,10 +1,5 @@
-name: RegionAudit
-main: net.jwebnet.regionaudit.RegionAudit
-version: 1.0
+name: NerdChat
+main: net.jwebnet.nerdchat.NerdChat
+version: 1.2
+author: Drazisil
 
-commands:
-   rgaudit:
-      description: Audit a worldguard region's owners.
-      usage: /rgaudit <plotname> [<worldname>]
-      permission: regionaudit.audit
-      permission-message: You don't have permission
