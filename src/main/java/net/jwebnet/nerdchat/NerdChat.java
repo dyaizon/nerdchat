@@ -19,6 +19,7 @@ package net.jwebnet.nerdchat;
 import java.util.ConcurrentModificationException;
 import java.util.LinkedList;
 import java.util.List;
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -62,12 +63,12 @@ public class NerdChat
             Player[] players;
             // Fill the list with the players from this world
             // Testing https://forums.bukkit.org/threads/java-util-concurrentmodificationexception-error.92020/
-            players = getServer().getOnlinePlayers();
+            players = Bukkit.getOnlinePlayers();
             // Loop though the players
             for (Player p : players) {
                 try {
-                    // If player has chat.admin, or is in the server's world, add them
-                    if ((p.hasPermission("chat.admin")) || (p.getWorld() == senderWorld)) {
+                    // If player is in the sender's world, add them
+                    if (p.getWorld() == senderWorld) {
                         recipients.add(p);
                     }
                 } catch (ConcurrentModificationException localConcurrentModificationException) {
