@@ -44,13 +44,17 @@ public class NerdChat
         if (evt.isCancelled()) {
             return;
         }
+
+        Player senderPlayer = evt.getPlayer();
+
         // If player has chat.admin, they are chatting with all worlds
-        if (evt.getPlayer().hasPermission("chat.admin")) {
+        if (senderPlayer.hasPermission("chat.admin")) {
             return;
         }
 
-        // Set the sender's world
-        World senderWorld = evt.getPlayer().getWorld();
+        // Get the sender's world
+        World senderWorld;
+        senderWorld = senderPlayer.getWorld();
 
         // Clear the list of players who will see the message
         evt.getRecipients().clear();
@@ -59,22 +63,34 @@ public class NerdChat
         List<Player> recipients = new LinkedList<Player>();
 
 //        for (World world : Bukkit.getWorlds()) {
-            // Create a list of players for this world
-            Player[] players;
-            // Fill the list with the players from this world
-            // Testing https://forums.bukkit.org/threads/java-util-concurrentmodificationexception-error.92020/
-            players = Bukkit.getOnlinePlayers();
-            // Loop though the players
-            for (Player p : players) {
-                try {
+        // Create a list of players for this world
+        Player[] players;
+        // Fill the list with the players from this world
+        // Testing https://forums.bukkit.org/threads/java-util-concurrentmodificationexception-error.92020/
+        players = Bukkit.getOnlinePlayers();
+        // Loop though the players
+        for (Player p : players) {
+            // Get the World of Player p
+            World playerWorld;
+            playerWorld = p.getWorld();
+            try {
+                if (playerWorld == senderWorld) {
                     // If player is in the sender's world, add them
-                    if (p.getWorld() == senderWorld) {
+                    recipients.add(p);
+                } else if ((senderPlayer.getWorld().getName().equals("Mineworld".toLowerCase()))
+                        || (p.getWorld().getName().equals("vip".toLowerCase()))) {
+                    /* If sender is in either "Mineworld" or "vip"
+                     * this check if the player is also in either world, and add.
+                     */
+                    if ((playerWorld.getName().equals("Mineworld".toLowerCase()))
+                            || (playerWorld.getName().equals("vip".toLowerCase()))) {
                         recipients.add(p);
                     }
-                } catch (ConcurrentModificationException localConcurrentModificationException) {
                 }
-
+            } catch (ConcurrentModificationException localConcurrentModificationException) {
             }
+
+        }
 //        }
         // Add the list of recipients back to the event
         evt.getRecipients().addAll(recipients);
