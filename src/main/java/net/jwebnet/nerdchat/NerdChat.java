@@ -16,6 +16,8 @@
  */
 package net.jwebnet.nerdchat;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -29,6 +31,9 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.SimpleFormatter;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -47,8 +52,13 @@ public class NerdChat extends JavaPlugin implements Listener {
         this.staffPlayers = new ArrayList<Player>();
         this.worldGroups = new ArrayList<WorldGroup>();
         
-        // Set up world groups.
+        // Parse config.
         this.config = new ConfigManager(this);
+        if (this.config.debug) {
+            enableDebug();
+        }
+        
+        // Set up world groups.
         for (String[] group : this.config.worldGroups) {
             LinkedList<World> worldList = new LinkedList<World>();
             for (String worldName : group) {
@@ -61,6 +71,7 @@ public class NerdChat extends JavaPlugin implements Listener {
             }
             
             if (!worldList.isEmpty()) {
+                getLogger().fine("Creating WorldGroup for " + worldList);
                 this.worldGroups.add(new WorldGroup(worldList));
             }
         }
@@ -69,12 +80,33 @@ public class NerdChat extends JavaPlugin implements Listener {
         for (World world : Bukkit.getWorlds()) {
             WorldGroup wg = findWorldGroup(world);
             if (wg == null) {
+                getLogger().fine("Creating WorldGroup for " + world.getName());
                 this.worldGroups.add(new WorldGroup(world));
             }
         }
         
         // Register for events.
         getServer().getPluginManager().registerEvents(this, this);
+    }
+    
+    private void enableDebug() {
+        File folder = getDataFolder();
+        if (!folder.exists()) {
+            folder.mkdir();
+        }
+        
+        File debug = new File(folder, "debug.log");
+        
+        try {
+            FileHandler fh = new FileHandler(debug.getPath());
+            fh.setLevel(Level.FINER);
+            getLogger().addHandler(fh);
+            
+            SimpleFormatter ft = new SimpleFormatter();
+            fh.setFormatter(ft);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
     
     private WorldGroup findWorldGroup(World world) {
@@ -99,25 +131,42 @@ public class NerdChat extends JavaPlugin implements Listener {
     
     @EventHandler(priority = EventPriority.NORMAL)
     public void onWorldLoad(WorldLoadEvent event) {
+        getLogger().fine("Got world load event for " +
+                event.getWorld().getName());
         String worldName = event.getWorld().getName();
         for (String[] group : this.config.worldGroups) {
             if (Arrays.asList(group).contains(worldName)) {
                 for (String name : group) {
                     WorldGroup worldGroup = findWorldGroup(name);
                     if (worldGroup != null) {
+                        getLogger().fine("Adding world " +
+                            event.getWorld().getName() + " to existing group");
                         worldGroup.addWorld(event.getWorld());
                         return;
                     }
                 }
             }
         }
+        
+        // No group found for this world - create own worldgroup.
+        getLogger().fine("Creating world group for " +
+                event.getWorld().getName());
+        this.worldGroups.add(new WorldGroup(event.getWorld()));
     }
     
     @EventHandler(priority = EventPriority.NORMAL)
     public void onWorldUnload(WorldUnloadEvent event) {
+        getLogger().fine("Got world unload event for " +
+                event.getWorld().getName());
         WorldGroup worldGroup = findWorldGroup(event.getWorld());
         if (worldGroup != null) {
+            getLogger().fine("Removing world " +
+                event.getWorld().getName() + " from group");
             worldGroup.removeWorld(event.getWorld());
+            if (worldGroup.size() == 0) {
+                getLogger().fine("Deleting empty WorldGroup");
+                worldGroups.remove(worldGroup);
+            }
         }
     }
     

@@ -50,6 +50,10 @@ public class WorldGroup {
         }
     }
     
+    public int size() {
+        return worldList.size();
+    }
+    
     public boolean contains(World world) {             
         return this.worldList.contains(world);
     }

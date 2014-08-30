@@ -28,6 +28,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 public class ConfigManager {
     
     public final LinkedList<String[]> worldGroups;
+    public final boolean debug;
     
     public ConfigManager (NerdChat plugin) {
         FileConfiguration config = plugin.getConfig();
@@ -42,5 +43,7 @@ public class ConfigManager {
         } else {
             plugin.getLogger().info("No group config found");
         }
+        
+        this.debug = config.getBoolean("debug");
     }
 }
