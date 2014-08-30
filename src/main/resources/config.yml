@@ -1,0 +1,24 @@
+#
+# NerdChat's configuration file
+#
+# About editing this file:
+# - DO NOT USE TABS. You MUST use spaces or Bukkit will complain.
+# - Don't get rid of the indents - these are intentional.
+# - If you want to check the format of this file before running with it,
+#   paste it into http://yaml-online-parser.appspot.com/
+#   and see if it gives "ERROR:".
+# - Lines starting with # are comments and are ignored.
+#
+# This file should only have a single section, laid out in the following manner:
+#
+# groups:
+#     - world1, world2
+#     - world4, world5
+#
+# The example configuration above will group chat in world1 and world2,
+# and in world4 and world5. Any other worlds that exist will have their own
+# separate chat.
+#
+# Players with the 'chat.admin' permission will see chat from all worlds,
+# and what they say will be visible in all worlds, regardless of any
+# settings here.
