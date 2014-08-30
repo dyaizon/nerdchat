@@ -16,6 +16,9 @@
  */
 package net.jwebnet.nerdchat;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -26,86 +29,169 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.world.WorldLoadEvent;
+import org.bukkit.event.world.WorldUnloadEvent;
 
-public class NerdChat
-        extends JavaPlugin
-        implements Listener {
-    List<Player> staffPlayers;
+public class NerdChat extends JavaPlugin implements Listener {
+    
+    private ConfigManager config;
+    private List<Player> staffPlayers;
+    private List<WorldGroup> worldGroups;
 
     @Override
     public void onEnable() {
+        this.saveDefaultConfig();
+        this.staffPlayers = new ArrayList<Player>();
+        this.worldGroups = new ArrayList<WorldGroup>();
+        
+        // Set up world groups.
+        this.config = new ConfigManager(this);
+        for (String[] group : this.config.worldGroups) {
+            LinkedList<World> worldList = new LinkedList<World>();
+            for (String worldName : group) {
+                World world = Bukkit.getWorld(worldName);
+                if (world == null) {
+                    getLogger().warning("World " + worldName + " not found!");
+                } else {
+                    worldList.add(world);
+                }
+            }
+            
+            if (!worldList.isEmpty()) {
+                this.worldGroups.add(new WorldGroup(worldList));
+            }
+        }
+        
+        // Create a worldgroup for any worlds not currently in one.
+        for (World world : Bukkit.getWorlds()) {
+            WorldGroup wg = findWorldGroup(world);
+            if (wg == null) {
+                this.worldGroups.add(new WorldGroup(world));
+            }
+        }
+        
+        // Register for events.
         getServer().getPluginManager().registerEvents(this, this);
-
     }
-
+    
+    private WorldGroup findWorldGroup(World world) {
+        for (WorldGroup group : worldGroups) {
+            if (group.contains(world)) {
+                return group;
+            }
+        }
+        
+        return null;
+    }
+    
+    private WorldGroup findWorldGroup(String worldName) {
+        for (WorldGroup group : worldGroups) {
+            if (group.contains(worldName)) {
+                return group;
+            }
+        }
+        
+        return null;
+    }
+    
     @EventHandler(priority = EventPriority.NORMAL)
-    public void PlayerJoinEvent(Player playerJoined, String joinMessage) {
-        // If player has chat.admin, they are chatting with all worlds
-        if (playerJoined.hasPermission("chat.admin")) {
-            staffPlayers.add(playerJoined);
+    public void onWorldLoad(WorldLoadEvent event) {
+        String worldName = event.getWorld().getName();
+        for (String[] group : this.config.worldGroups) {
+            if (Arrays.asList(group).contains(worldName)) {
+                for (String name : group) {
+                    WorldGroup worldGroup = findWorldGroup(name);
+                    if (worldGroup != null) {
+                        worldGroup.addWorld(event.getWorld());
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void onWorldUnload(WorldUnloadEvent event) {
+        WorldGroup worldGroup = findWorldGroup(event.getWorld());
+        if (worldGroup != null) {
+            worldGroup.removeWorld(event.getWorld());
+        }
+    }
+    
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
+        WorldGroup fromGroup = findWorldGroup(event.getFrom());
+        WorldGroup toGroup = findWorldGroup(event.getPlayer().getWorld());
+        
+        if (fromGroup != null) {
+            fromGroup.removePlayer(event.getPlayer());
+        }
+        
+        if (toGroup != null) {
+            toGroup.addPlayer(event.getPlayer());
         }
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
-    public void PlayerQuitEvent(Player who, String quitMessage) {
+    public void onPlayerJoin(PlayerJoinEvent event) {
         // If player has chat.admin, they are chatting with all worlds
-        if (who.hasPermission("chat.admin")) {
-            staffPlayers.remove(who);
+        if (event.getPlayer().hasPermission("chat.admin")) {
+            staffPlayers.add(event.getPlayer());
+        }
+        
+        WorldGroup toGroup = findWorldGroup(event.getPlayer().getWorld());
+        if (toGroup != null) {
+            toGroup.addPlayer(event.getPlayer());
         }
     }
 
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        // If player has chat.admin, they are chatting with all worlds
+        if (event.getPlayer().hasPermission("chat.admin")) {
+            staffPlayers.remove(event.getPlayer());
+        }
+        
+        WorldGroup fromGroup = findWorldGroup(event.getPlayer().getWorld());
+        if (fromGroup != null) {
+            fromGroup.addPlayer(event.getPlayer());
+        }
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST)
-    public void onChat(AsyncPlayerChatEvent evt) {
+    public void onChat(AsyncPlayerChatEvent event) {
         // If event is canceled, abort
-        if (evt.isCancelled()) {
+        if (event.isCancelled()) {
             return;
         }
 
-        Player senderPlayer = evt.getPlayer();
+        Player senderPlayer = event.getPlayer();
 
         // If player has chat.admin, they are chatting with all worlds
         if (senderPlayer.hasPermission("chat.admin")) {
             return;
         }
-
-        // Get the sender's world
-        World senderWorld;
-        senderWorld = senderPlayer.getWorld();
-
+        
         // Clear the list of players who will see the message
-        evt.getRecipients().clear();
-
-        /*
-         * Get a list of all players in the sender's world
-         */
-        List<Player> senderWorldPlayers;
-        senderWorldPlayers = senderWorld.getPlayers();
-
-        /*
-         * Add the players in the sender's world to the list
-         */
-        evt.getRecipients().addAll(senderWorldPlayers);
-
-        /*
-         * Check if sender is in a linked world
-         */
-        if ((senderWorld.getName().equals("Mineworld".toLowerCase()))
-                || (senderWorld.getName().equals("vip".toLowerCase()))) {
-            /*
-             * sender is in a linked world
-             */
-            if (senderWorld.getName().equals("Mineworld")) {
-                /* If sender is in either "Mineworld" or "vip"
-                 * this check if the player is also in either world, and add.
-                 */
-                evt.getRecipients().addAll(Bukkit.getWorld("Mineworld").getPlayers());
-            }
-
-        } else if (senderWorld.getName().equals("vip")) {
-            evt.getRecipients().addAll(Bukkit.getWorld("Mineworld").getPlayers());
-
+        event.getRecipients().clear();
+        
+        // Get the worldgroup of the sender and add all the players in that
+        // worldgroup.
+        World senderWorld = senderPlayer.getWorld();
+        WorldGroup worldGroup = findWorldGroup(senderWorld);
+        
+        if (worldGroup != null) {
+            event.getRecipients().addAll(worldGroup.getPlayers());
+        } else {
+            // The WorldGroup should never be null, so print a warning here.
+            getLogger().warning("WorldGroup not found for world " + 
+                    senderWorld.getName());
+            event.getRecipients().addAll(senderWorld.getPlayers());
         }
-        evt.getRecipients().addAll(staffPlayers);
+
+        event.getRecipients().addAll(staffPlayers);
     }
 }
