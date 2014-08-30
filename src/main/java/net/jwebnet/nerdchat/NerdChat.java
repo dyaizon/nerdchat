@@ -30,12 +30,30 @@ import java.util.List;
 public class NerdChat
         extends JavaPlugin
         implements Listener {
+    List<Player> staffPlayers;
 
     @Override
     public void onEnable() {
         getServer().getPluginManager().registerEvents(this, this);
 
     }
+
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void PlayerJoinEvent(Player playerJoined, String joinMessage) {
+        // If player has chat.admin, they are chatting with all worlds
+        if (playerJoined.hasPermission("chat.admin")) {
+            staffPlayers.add(playerJoined);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void PlayerQuitEvent(Player who, String quitMessage) {
+        // If player has chat.admin, they are chatting with all worlds
+        if (who.hasPermission("chat.admin")) {
+            staffPlayers.remove(who);
+        }
+    }
+
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onChat(AsyncPlayerChatEvent evt) {
@@ -88,5 +106,6 @@ public class NerdChat
             evt.getRecipients().addAll(Bukkit.getWorld("Mineworld").getPlayers());
 
         }
+        evt.getRecipients().addAll(staffPlayers);
     }
 }
